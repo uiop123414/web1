@@ -1,0 +1,61 @@
+body {
+    text-align: left;
+    padding: 20px;
+}
+
+#color-values {
+    margin-top: 10px;
+}
+
+#image-dimensions {
+    margin-top: 10px;
+}
+
+#tone-input {
+    margin-top: 10px;
+}
+
+#pixel-coordinates {
+    margin-top: 10px;
+}
+
+#container,
+#image-container {
+    margin-right: 20px;
+    margin-bottom: 10px;
+    position: fixed; 
+    /* top: 57px; 
+    left: 0; 
+    right: 0; 
+    bottom: 0; */
+}
+
+#container,
+#tone{
+    display: flex;
+    flex-wrap: wrap;
+    margin-right: 20px;
+    margin-bottom: 10px;
+}
+
+#container > div,
+#image-container > * {
+    margin-right: 20px;
+    margin-bottom: 10px;
+}
+
+.color-info {
+    position: fixed;
+    top: 0;
+    right: -300px; /* По умолчанию панель сдвинута за пределы экрана */
+    width: 300px;
+    height: 100%;
+    background-color: #f8f9fa;
+    padding: 10px;
+    transition: right 0.3s ease; /* Анимация выдвижения */
+    z-index: 9999; /* Помещаем панель поверх других элементов */
+}
+
+.color-info.open {
+    right: 0; /* При добавлении класса "open" панель выезжает на экран */
+}
