@@ -206,6 +206,13 @@ $(document).ready(function() {
 
     // Обработчик события клика для инструмента "Пипетка"
     $('.pipette-tool').on('click', function() {
+        if(currentMode=='pipette'){
+            currentMode='';
+            $(this).removeClass('selected');
+            $(this).css('background-color', '');
+            $("#infoPanel").addClass("invisible")
+        }
+        else{
         currentMode = 'pipette';
         $('.tool-btn').removeClass('selected');
         $(this).addClass('selected');
@@ -214,18 +221,28 @@ $(document).ready(function() {
         // Возвращаем цвет кнопки по умолчанию у других кнопок
         $('.hand-tool').css('background-color', '');
         // Добавьте обработчик события клика на canvas здесь
+        $("#infoPanel").removeClass("invisible")
+
+    }
     });
 
     // Обработчик события клика для инструмента "Рука"
     $('.hand-tool').on('click', function() {
-        currentMode = 'hand';
-        $('.tool-btn').removeClass('selected');
-        $(this).addClass('selected');
-        // Меняем цвет кнопки при выборе
-        $(this).css('background-color', '#ffffff');
-        // Возвращаем цвет кнопки по умолчанию у других кнопок
-        $('.pipette-tool').css('background-color', '');
-        // Добавьте обработчик события клика на canvas здесь
+        if(currentMode=='hand'){
+            currentMode='';
+            $(this).removeClass('selected');
+            $(this).css('background-color', '');
+        }
+        else{
+            currentMode = 'hand';
+            $('.tool-btn').removeClass('selected');
+            $(this).addClass('selected');
+            // Меняем цвет кнопки при выборе
+            $(this).css('background-color', '#ffffff');
+            // Возвращаем цвет кнопки по умолчанию у других кнопок
+            $('.pipette-tool').css('background-color', '');
+            // Добавьте обработчик события клика на canvas здесь
+        }
     });
 
     // Обработчик события клика на canvas
@@ -305,3 +322,11 @@ function downloadCanvasImage(canvas, filename) {
     // Удаляем ссылку после скачивания
     document.body.removeChild(link);
 }
+
+const closeButtonPippete = document.getElementById('ClosePippete');
+closeButtonPippete.addEventListener('click', () => {
+    currentMode='';
+    $('.pipette-tool').removeClass('selected');
+    $('.pipette-tool').css('background-color', '');
+    $("#infoPanel").addClass("invisible")
+});
