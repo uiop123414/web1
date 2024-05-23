@@ -10,6 +10,8 @@
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js"></script>
     <!-- <link href="https://stackpath.bootstrapcdn.com/bootstrap/5.1.3/css/bootstrap.min.css" rel="stylesheet"> -->
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+    <style stc=".\style.css"></style>
 
 </head>
 <body>
@@ -37,6 +39,11 @@
                 <li style="margin-right: 10px;">
                     <input type="range" min="12" max="300" value="100" step="1" id="range-input">
                 </li>
+                <p>Скорость</p>
+                <li style="margin-right: 10px;">
+                    
+                    <input type="range" id="speedRange" min="1" max="20" value="5">
+                </li>
                 <li style="margin-right: 10px;">
                     <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#Redact">
                         Редактировать Фото    
@@ -51,9 +58,14 @@
                             <span class="glyphicon glyphicon-hand-up"></span>
                         </button>
                 </li>
-                <li>
+                <li style="margin-right: 10px;">
                     <button id="download-button" class="btn btn-primary">Скачать изображение</button>
-
+                </li>
+                <li style="margin-right: 10px;">
+                    <button id="graph-button" class="btn btn-primary"data-toggle="modal" data-target="#GraphModal">График</button>
+                </li>
+                <li style="margin-right: 10px;">
+                    <button id="filter-button" class="btn btn-primary"data-toggle="modal" data-target="#FilterModal">Фильтрация</button>
                 </li>
             </ul>
         </div>
@@ -73,7 +85,7 @@
       </button>
       
   
-    <!-- Modal -->
+    <!-- Modal  Change size-->
     <div class="modal fade" id="myModal" tabindex="-1" role="dialog" aria-labelledby="exampleModalLabel" aria-hidden="true">
       <div class="modal-dialog" role="document">
           <div class="modal-content">
@@ -175,11 +187,10 @@
     </div>
     <!-- Информационная панель с offcanvas -->
     <div class="invisible" id="infoPanel">
+        <button type="button" class="btn-close-pippete text-reset" aria-label="Close" data-bs-dismiss="offcanvas" id="ClosePippete"></button>
         <div class="card" style="width: 18rem;">
-
             <div class="offcanvas-header">
                 <h5 class="offcanvas-title">Информация о цвете</h5>
-                <button type="button" class="btn-close-pippete text-reset" aria-label="Close" data-bs-dismiss="offcanvas" id="ClosePippete"></button>
             </div>
             <div class="offcanvas-body">
                 <div id="color-sample"></div>
@@ -188,13 +199,117 @@
                 <p>RGB: <span id="rgb-color"></span></p>
                 <p>XYZ: <span id="xyz-color" data-bs-toggle="tooltip" title="CIE 1931 XYZ color space"></span></p>
                 <p>Lab: <span id="lab-color" data-bs-toggle="tooltip" title="CIELAB color space"></span></p>
+                <p>Lum: <span id="luminance" data-bs-toggle="tooltip" title="CIELAB color space"></span></p>
+                <div id="colorDisplay" style="width: 50px; height: 50px; border: 1px solid black;"></div>
+
+            </div>
+        </div>
+        <div class="card" style="width: 18rem;">
+            <div class="offcanvas-header">
+                <h5 class="offcanvas-title">Информация о цвете</h5>
+            </div>
+            <div class="offcanvas-body">
+                <div id="color-sample-alt"></div>
+                <p>X: <span id="x-coordinate-alt"></span></p>
+                <p>Y: <span id="y-coordinate-alt"></span></p>
+                <p>RGB: <span id="rgb-color-alt"></span></p>
+                <p>XYZ: <span id="xyz-color-alt" data-bs-toggle="tooltip" title="CIE 1931 XYZ color space"></span></p>
+                <p>Lab: <span id="lab-color-alt" data-bs-toggle="tooltip" title="CIELAB color space"></span></p>
+                <p>Lum: <span id="luminance-alt" data-bs-toggle="tooltip" title="CIELAB color space"></span></p>
+                <div id="colorDisplay-alt" style="width: 50px; height: 50px; border: 1px solid black;"></div>
+
             </div>
         </div>
     </div>
 
+
+
+        <!-- Modal  Change size-->
+        <div class="modal fade" id="GraphModal" tabindex="-1" role="dialog" aria-labelledby="exampleModalLabel" aria-hidden="true">
+            <div class="modal-dialog" role="document">
+                <div class="modal-content">
+                    <h2>Градационная коррекция</h2>
+                    <canvas id="graphCanvas" width="255" height="255"></canvas>
+                    <br>
+                    <label for="input1">Входная точка :</label>
+                    <input type="number" id="input_x" min="0" max="255" value="100">
+                    <input type="number" id="input_y" min="0" max="255" value="100">
+                    <br>
+                    <label for="output1">Выходная точка:</label>
+                    <input type="number" id="output_x" min="0" max="255" value="150">
+                    <input type="number" id="output_y" min="0" max="255" value="150">
+                    <br>
+                    <div>
+                    <label for="previewCheckbox">Включить предпросмотр:</label>
+                    <input type="checkbox" id="previewCheckbox">
+                    </div>
+                
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-success" id="updateGraph">Установить точки</button>
+                    <button type="button" id="applyCorrection" class="btn btn-primary">Применить коррекцию</button>
+                    <button type="button" id="resetValues" class="btn btn-secondary">Сбросить значения</button>
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Закрыть</button>
+                </div>
+            </div>
+            </div>
+          </div>
+
+          <div class="modal fade" id="FilterModal" tabindex="-1" aria-labelledby="FilterModalLabel" aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="FilterModalLabel">Фильтрация</h5>
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="form-group">
+                            <label for="presetValues">Преднастроенные значения</label>
+                            <select class="form-control" id="presetValuesOptions">
+                                <option>Тождественное отображение 1</option>
+                                <option>Повышение резкости 2</option>
+                                <option>Фильтр Гаусса 3</option>
+                                <option>Прямоугольное размытие 4</option>
+                            </select>
+                        </div>
+                        <div id="grid-container-numbers">
+                            <input type="number" class="form-control" id="field1" placeholder="Поле 1">
+                            <input type="number" class="form-control" id="field2" placeholder="Поле 2">
+                            <input type="number" class="form-control" id="field3" placeholder="Поле 3">
+                            <input type="number" class="form-control" id="field4" placeholder="Поле 4">
+                            <input type="number" class="form-control" id="field5" placeholder="Поле 5">
+                            <input type="number" class="form-control" id="field6" placeholder="Поле 6">
+                            <input type="number" class="form-control" id="field7" placeholder="Поле 7">
+                            <input type="number" class="form-control" id="field8" placeholder="Поле 8">
+                            <input type="number" class="form-control" id="field9" placeholder="Поле 9">
+                        </div>
+                        <div class="form-check mt-3">
+                            <input type="checkbox" class="form-check-input" id="previewCheck">
+                            <label class="form-check-label" for="previewCheck">Включить предпросмотр</label>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Закрыть</button>
+                        <button type="button" class="btn btn-danger">Сбросить</button>
+                        <button type="button" class="btn btn-primary" id="apply-button">Применить размытие</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+
+
     <script src="scripts.js"></script>
+
 <!-- Bootstrap JS and dependencies (Popper.js) -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/2.11.6/umd/popper.min.js"></script>
 <script src="https://stackpath.bootstrapcdn.com/bootstrap/5.1.3/js/bootstrap.min.js"></script>
+<script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.5.4/dist/umd/popper.min.js"></script>
+<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+
 </body>
 </html>
+
+

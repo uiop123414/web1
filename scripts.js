@@ -1,7 +1,34 @@
 let originalImageData; // сохраняем оригинальное изображение
 
 document.getElementById('image-input').addEventListener('change', handleImage);
-// document.getElementById('apply-tone').addEventListener('click', applyTone);
+var currentMode = '';
+let dragSpeed = 5;
+
+const speedRange = document.getElementById('speedRange');
+speedRange.addEventListener('input', () => {
+    dragSpeed = parseInt(speedRange.value);
+});
+
+
+function drawCurve(ctx) {
+
+    ctx.clearRect(0, 0, graphCanvas.width, graphCanvas.height);
+    drawHistogram();
+    // Начинаем путь
+    ctx.beginPath();
+    ctx.moveTo(0, graphCanvas.height);
+
+    // Рисуем кривую градационной коррекции
+    for (var x = 0; x < graphCanvas.width; x++) {
+        var y = graphCanvas.height - ((x) ** 2 / (graphCanvas.width ** 2)) * graphCanvas.height;
+        ctx.lineTo(x, y);
+    }
+
+    // Заканчиваем путь и рисуем
+    ctx.strokeStyle = "blue";
+    ctx.stroke();
+}
+const img = new Image();
 
 function handleImage(event) {
 
@@ -13,7 +40,11 @@ function handleImage(event) {
     const colorValues = document.getElementById('color-values');
     const pixelCoordinates = document.getElementById('pixel-coordinates');
 
-    const img = new Image();
+    var graphCanvas = document.getElementById("graphCanvas");
+    var graphCtx = graphCanvas.getContext("2d");
+
+
+
     img.onload = function() {
         canvas.width = img.width;
         canvas.height = img.height;
@@ -38,8 +69,13 @@ function handleImage(event) {
             const coordinates = `x=${x}, y=${y}`;
             pixelCoordinates.textContent = coordinates;
         });
+
+        drawHistogram();
+        // drawCurve(graphCtx);
+
     
     };
+
 
     const file = input.files[0];
     const reader = new FileReader();
@@ -47,34 +83,54 @@ function handleImage(event) {
         img.src = e.target.result;
     };
     reader.readAsDataURL(file);
-}
 
-function applyTone() {
-    const canvas = document.getElementById('image-canvas');
-    const ctx = canvas.getContext('2d');
-    const toneInput = document.getElementById('tone-input');
-    const toneValue = document.getElementById('tone-value');
-    const downloadLink = document.getElementById('download-link');
 
-    ctx.putImageData(originalImageData, 0, 0); // восстанавливаем оригинальное изображение
+    let imageX = 0;
+    let imageY = 0;
+    // let imageWidth = 0;
+    // let imageHeight = 0;
 
-    const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-    const toneAmount = parseInt(toneInput.value);
-    toneValue.textContent = toneAmount;
 
-    for (let i = 0; i < imgData.data.length; i += 4) {
-        imgData.data[i] += toneAmount; // Red
-        imgData.data[i + 1] += toneAmount; // Green
-        imgData.data[i + 2] += toneAmount; // Blue
+
+
+    function moveImage(deltaX, deltaY) {
+        const style = window.getComputedStyle(canvas);
+        const marginLeft = parseInt(style.marginLeft) || 0;
+        const marginTop = parseInt(style.marginTop) || 0;
+    
+        const newMarginLeft = marginLeft + deltaX;
+        const newMarginTop = marginTop + deltaY;
+    
+        canvas.style.marginLeft = `${newMarginLeft}px`;
+        canvas.style.marginTop = `${newMarginTop}px`;
     }
 
-    ctx.putImageData(imgData, 0, 0);
 
-    // Enable download link
-    const dataURL = canvas.toDataURL();
-    downloadLink.href = dataURL;
-    downloadLink.download = 'image_with_tone.png';
-    downloadLink.style.display = 'block';
+    // Function to handle key down event
+    function handleKeyDown(event) {
+        if(currentMode==="hand"){
+            switch (event.key) {
+                case 'ArrowLeft':
+                    moveImage(-dragSpeed, 0);
+                    event.preventDefault();
+                    break;
+                case 'ArrowRight':
+                    moveImage(dragSpeed, 0);
+                    event.preventDefault();
+                    break;
+                case 'ArrowUp':
+                    moveImage(0, -dragSpeed);
+                    event.preventDefault();
+                    break;
+                case 'ArrowDown':
+                    moveImage(0, dragSpeed);
+                    event.preventDefault();
+                    break;
+            }
+        }
+    }
+    document.addEventListener('keydown', handleKeyDown);
+
 }
 
 
@@ -97,8 +153,8 @@ $(document).ready(function() {
         height = canvas.height * (height/100)
       }
       
-      canvas.width = width;
-      canvas.height = height;
+      canvas.width = 2500;
+      canvas.height = 2500;
       const scaledImageData = nearestNeighborResize(originalImageData, canvas.width, canvas.height);
         
       const widthValue = document.getElementById('width-value');
@@ -182,17 +238,40 @@ sizeRange.addEventListener('input', () => {
 
 $(document).ready(function() {
     // Переменная для отслеживания текущего режима (hand или pipette)
-    var currentMode = '';
+
 
     // Функция для отображения информации о цвете и координатах
-    function showColorInfo(color, x, y) {
-        $('#color-info').removeClass('d-none').addClass('show');
-        $('#color-sample').css('background-color', color);
-        $('#x-coordinate').text(x);
-        $('#y-coordinate').text(y);
-        $('#rgb-color').text(color);
+    function showColorInfo(color, x, y,isalt=false) {
+        if(isalt){
+
+            const pixel = ctx.getImageData(x, y, 1, 1).data;
+            $('#color-info-alt').removeClass('d-none').addClass('show');
+            $('#color-sample-alt').css('background-color', color);
+            $('#x-coordinate-alt').text(x);
+            $('#y-coordinate-alt').text(y);
+            $('#rgb-color-alt').text(color)
+            $('#xyz-color-alt').text(rgbToXyz(pixel[0],pixel[1],pixel[2]));
+            $('#lab-color-alt').text(rgbToLab(pixel[0],pixel[1],pixel[2]));
+            $('#luminance-alt').text(calculateRelativeLuminance(pixel[0],pixel[1],pixel[2]).toFixed(2));
+            document.getElementById('colorDisplay-alt').style.backgroundColor = 'rgb(' + pixel[0] + ',' + pixel[1] + ',' + pixel[2] + ')';
+        }
+        else{
+            const pixel = ctx.getImageData(x, y, 1, 1).data;
+            $('#color-info').removeClass('d-none').addClass('show');
+            $('#color-sample').css('background-color', color);
+            $('#x-coordinate').text(x);
+            $('#y-coordinate').text(y);
+            $('#rgb-color').text(color)
+            $('#xyz-color').text(rgbToXyz(pixel[0],pixel[1],pixel[2]));
+            $('#lab-color').text(rgbToLab(pixel[0],pixel[1],pixel[2]));
+            $('#luminance').text(calculateRelativeLuminance(pixel[0],pixel[1],pixel[2]).toFixed(2));
+            document.getElementById('colorDisplay').style.backgroundColor = 'rgb(' + pixel[0] + ',' + pixel[1] + ',' + pixel[2] + ')'
+        }
         // Здесь можно добавить логику для расчета и отображения других цветовых пространств
     }
+
+    
+
 
     // Функция для получения цвета по координатам X и Y
     function getColor(x, y) {
@@ -200,7 +279,7 @@ $(document).ready(function() {
         // В данном примере возвращается случайный цвет
         const pixel = ctx.getImageData(x, y, 1, 1).data;
         const rgba = `${pixel[0]}, ${pixel[1]}, ${pixel[2]}`;
-        return 'rgb(' + rgba + ')';
+        return '(' + rgba + ')';
 
     }
 
@@ -213,22 +292,22 @@ $(document).ready(function() {
             $("#infoPanel").addClass("invisible")
         }
         else{
-        currentMode = 'pipette';
-        $('.tool-btn').removeClass('selected');
-        $(this).addClass('selected');
-        // Меняем цвет кнопки при выборе
-        $(this).css('background-color', '#ffffff');
-        // Возвращаем цвет кнопки по умолчанию у других кнопок
-        $('.hand-tool').css('background-color', '');
-        // Добавьте обработчик события клика на canvas здесь
-        $("#infoPanel").removeClass("invisible")
+            currentMode = 'pipette';
+            $('.tool-btn').removeClass('selected');
+            $(this).addClass('selected');
+            // Меняем цвет кнопки при выборе
+            $(this).css('background-color', '#ffffff');
+            // Возвращаем цвет кнопки по умолчанию у других кнопок
+            $('.hand-tool').css('background-color', '');
+            // Добавьте обработчик события клика на canvas здесь
+            $("#infoPanel").removeClass("invisible")
 
-    }
+        }
     });
 
     // Обработчик события клика для инструмента "Рука"
     $('.hand-tool').on('click', function() {
-        if(currentMode=='hand'){
+        if(currentMode==='hand'){
             currentMode='';
             $(this).removeClass('selected');
             $(this).css('background-color', '');
@@ -250,8 +329,15 @@ $(document).ready(function() {
         // Добавьте логику обработки клика на canvas здесь
         // Получите цвет по координатам event.pageX и event.pageY
         if(currentMode=='pipette'){
-            var color = getColor(event.pageX, event.pageY);
-            showColorInfo(color, event.pageX, event.pageY);
+
+            if (event.altKey || event.ctrlKey || event.shiftKey) {
+                var color = getColor(event.pageX, event.pageY);
+                showColorInfo(color, event.pageX, event.pageY,true);
+            }
+            else{
+                var color = getColor(event.pageX, event.pageY);
+                showColorInfo(color, event.pageX, event.pageY);
+            }
         }
     });
 
@@ -286,7 +372,6 @@ heightInput.addEventListener('input', () => {
         const aspectRatio = calculateAspectRatio();
         widthInput.value = Math.round(heightInput.value * aspectRatio);
     }
-    console.log( heightInput.value * widthInput.value / 1000000)
     document.getElementById('next-pixel-info-text').textContent = Math.round(heightInput.value * widthInput.value / 1000000);
 });
 
@@ -302,11 +387,17 @@ function calculateAspectRatio() {
 
 // Получаем ссылку на кнопку для скачивания изображения и на элемент canvas
 const downloadButton = document.getElementById('download-button');
+const graphButton = document.getElementById('graph-button');
 
 // Добавляем обработчик события click на кнопку для скачивания изображения
 downloadButton.addEventListener('click', () => {
     downloadCanvasImage(canvas, 'my_image.png');
 });
+
+graphButton.addEventListener('click', () => {
+    
+});
+
 
 // Функция для скачивания изображения из canvas
 function downloadCanvasImage(canvas, filename) {
@@ -330,3 +421,405 @@ closeButtonPippete.addEventListener('click', () => {
     $('.pipette-tool').css('background-color', '');
     $("#infoPanel").addClass("invisible")
 });
+
+function rgbToXyz(r, g, b,data=false) {
+    // Normalize the RGB values to the range 0-1
+    r = r / 255;
+    g = g / 255;
+    b = b / 255;
+
+    // Apply a gamma correction to linearize the RGB values
+    r = r > 0.04045 ? Math.pow((r + 0.055) / 1.055, 2.4) : r / 12.92;
+    g = g > 0.04045 ? Math.pow((g + 0.055) / 1.055, 2.4) : g / 12.92;
+    b = b > 0.04045 ? Math.pow((b + 0.055) / 1.055, 2.4) : b / 12.92;
+
+    // Convert the linear RGB values to the XYZ color space
+    const x = (r * 0.4124564 + g * 0.3575761 + b * 0.1804375).toFixed(2);
+    const y = (r * 0.2126729 + g * 0.7151522 + b * 0.0721750).toFixed(2);
+    const z = (r * 0.0193339 + g * 0.1191920 + b * 0.9503041).toFixed(2);
+    if(data){
+        return {x,y,z}
+    }
+    const XYZ = `${x}, ${y}, ${z}`;
+    return '(' + XYZ + ')';
+}
+
+// Function to convert XYZ to LAB
+function xyzToLab(x, y, z) {
+    // D65 standard referent values
+    const refX =  95.047;
+    const refY = 100.000;
+    const refZ = 108.883;
+
+    x = x / refX;
+    y = y / refY;
+    z = z / refZ;
+
+    x = x > 0.008856 ? Math.pow(x, 1/3) : (7.787 * x) + (16 / 116);
+    y = y > 0.008856 ? Math.pow(y, 1/3) : (7.787 * y) + (16 / 116);
+    z = z > 0.008856 ? Math.pow(z, 1/3) : (7.787 * z) + (16 / 116);
+
+    const l = ((116 * y) - 16).toFixed(2);
+    const a = (500 * (x - y)).toFixed(2);
+    const b = (200 * (y - z)).toFixed(2);
+
+    return { l, a, b };
+}
+
+function rgbToLab(r, g, b) {
+    const xyz = rgbToXyz(r, g, b,true);
+    const LAB = xyzToLab(xyz.x, xyz.y, xyz.z);
+    const LAB_text = `${LAB.l}, ${LAB.a}, ${LAB.b}`;
+    return '('+LAB_text+')';
+}
+
+
+// Function to calculate relative luminance
+function calculateRelativeLuminance(r, g, b) {
+    const rgb = [r, g, b].map(value => {
+        value = value / 255;
+        return value <= 0.03928 ? value / 12.92 : Math.pow((value + 0.055) / 1.055, 2.4);
+    });
+
+    return rgb[0] * 0.2126 + rgb[1] * 0.7152 + rgb[2] * 0.0722;
+}
+
+// Function to calculate contrast ratio
+function calculateContrastRatio(rgb1, rgb2) {
+    const lum1 = calculateRelativeLuminance(rgb1[0], rgb1[1], rgb1[2]);
+    const lum2 = calculateRelativeLuminance(rgb2[0], rgb2[1], rgb2[2]);
+    return (Math.max(lum1, lum2) + 0.05) / (Math.min(lum1, lum2) + 0.05);
+}
+
+
+
+function drawHistogram() {
+    var imageCanvas = document.getElementById("image-canvas");
+    let imageCtx = imageCanvas.getContext("2d");
+    var graphCtx = graphCanvas.getContext("2d");
+    var imageData = imageCtx.getImageData(0, 0, img.width, img.height);
+    var data = imageData.data;
+
+
+    // Инициализируем массивы для хранения значений гистограммы для каждого канала
+    var histogram = {
+        r: new Array(256).fill(0),
+        g: new Array(256).fill(0),
+        b: new Array(256).fill(0)
+    };
+
+    // Заполняем массивы гистограммы
+    for (var i = 0; i < data.length; i += 4) {
+        histogram.r[data[i]]++;
+        histogram.g[data[i + 1]]++;
+        histogram.b[data[i + 2]]++;
+    }
+
+    // Находим максимальное значение в гистограмме для нормализации высоты столбцов
+    var maxCount = Math.max(
+        ...histogram.r,
+        ...histogram.g,
+        ...histogram.b
+    );
+
+    // Очищаем canvas и рисуем гистограмму
+    // graphCtx.clearRect(0, 0, graphCanvas.width, graphCanvas.height);
+
+    var barWidth = graphCanvas.width / 256;
+
+    // Рисуем гистограмму
+    for (var j = 0; j < 256; j++) {
+        var barHeightR = (histogram.r[j] / maxCount) * graphCanvas.height;
+        var barHeightG = (histogram.g[j] / maxCount) * graphCanvas.height;
+        var barHeightB = (histogram.b[j] / maxCount) * graphCanvas.height;
+
+        // Рисуем красный канал
+        graphCtx.fillStyle = 'rgba(255, 0, 0, 0.3)';
+        graphCtx.fillRect(j * barWidth, graphCanvas.height - barHeightR, barWidth, barHeightR);
+
+        // Рисуем зеленый канал
+        graphCtx.fillStyle = 'rgba(0, 255, 0, 0.3)';
+        graphCtx.fillRect(j * barWidth, graphCanvas.height - barHeightG, barWidth, barHeightG);
+
+        // Рисуем синий канал
+        graphCtx.fillStyle = 'rgba(0, 0, 255, 0.3)';
+        graphCtx.fillRect(j * barWidth, graphCanvas.height - barHeightB, barWidth, barHeightB);
+    }
+}
+
+
+
+const updateButton = document.getElementById('updateGraph');
+const applyCorrection = document.getElementById('applyCorrection');
+
+
+function makegraph(applyCorr=false){
+
+    var graphCanvas = document.getElementById("graphCanvas");
+    var graphCtx = graphCanvas.getContext("2d");
+    // graphCtx.setTransform(1, 0, 0, -1, 0, graphCanvas.height);
+    var imageCanvas = document.getElementById("image-canvas");
+    let imageCtx = imageCanvas.getContext("2d");
+
+    graphCtx.clearRect(0, 0, graphCanvas.width, graphCanvas.height);
+
+
+
+    drawHistogram();
+    // drawCurve(graphCtx);
+
+    // Получаем значения входных и выходных точек
+    var input_x = parseInt(document.getElementById("input_x").value);
+    var input_y = parseInt(document.getElementById("input_y").value);
+    var output_x = parseInt(document.getElementById("output_x").value);
+    var output_y = parseInt(document.getElementById("output_y").value);
+
+    // Инициализируем график
+    drawGraph(graphCtx);
+    if(applyCorr)
+            applyCorrectionToImage(imageCtx);
+
+    // Функция для рисования графика градационной коррекции с точками
+    function drawGraph(ctx) {
+
+        graphCtx.setTransform(1, 0, 0, -1, 0, graphCtx.height);
+        // Инвертируем координаты Y
+        var inverted_input_y = graphCanvas.height - (input_y * graphCanvas.height / 255);
+        var inverted_output_y = graphCanvas.height - (output_y * graphCanvas.height / 255);
+
+        // Рисуем точки
+        ctx.fillStyle = "red";
+        ctx.beginPath();
+        ctx.arc(input_x * graphCanvas.width / 255, inverted_input_y, 5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(output_x * graphCanvas.width / 255, inverted_output_y, 5, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Соединяем точки линией
+        ctx.strokeStyle = "blue";
+        ctx.beginPath();
+        ctx.moveTo(input_x * graphCanvas.width / 255, inverted_input_y);
+        ctx.lineTo(output_x * graphCanvas.width / 255, inverted_output_y);
+        ctx.stroke();
+
+        // Горизонтальная линия от меньшей точки влево
+        ctx.beginPath();
+        ctx.moveTo(input_x * graphCanvas.width / 255, inverted_input_y);
+        ctx.lineTo(0, inverted_input_y);
+        ctx.stroke();
+        
+        // Горизонтальная линия от большей точки вправо
+        ctx.beginPath();
+        ctx.moveTo(output_x * graphCanvas.width / 255, inverted_output_y);
+        ctx.lineTo(graphCanvas.width, inverted_output_y);
+        ctx.stroke();
+    }
+
+    // Функция для проведения градационной коррекции на изображении
+    function applyCorrectionToImage(imageCtx) {
+        var imageData = imageCtx.getImageData(0, 0, imageCanvas.width, imageCanvas.height);
+        var data = imageData.data;
+
+        for (var i = 0; i < data.length; i += 4) {
+            // Применяем коррекцию к каждому каналу цвета (R, G, B)
+            data[i] = applyCorrection(data[i]);     // Red
+            data[i + 1] = applyCorrection(data[i + 1]); // Green
+            data[i + 2] = applyCorrection(data[i + 2]); // Blue
+        }
+
+        // Помещаем скорректированные данные обратно на canvas
+        imageCtx.putImageData(imageData, 0, 0);
+    }
+
+    // Функция для применения градационной коррекции к пикселю на оси x
+    function applyCorrection(value) {
+        if (value < input_x) {
+            return input_y + (value - input_x) * (input_y / input_x);
+        } else if (value > output_x) {
+            return output_y + (value - output_x) * ((255 - output_y) / (255 - output_x));
+        } else {
+            return input_y + (value - input_x) * (output_y - input_y) / (output_x - input_x);
+        }
+    }
+}
+updateButton.addEventListener('click', () => makegraph());
+applyCorrection.addEventListener('click',() => makegraph(true))
+
+document.getElementById("resetValues").addEventListener("click", function() {
+    document.getElementById("input_x").value = 0;
+    document.getElementById("input_y").value = 0;
+    document.getElementById("output_x").value = 0;
+    document.getElementById("output_y").value = 0;
+
+    if (document.getElementById("previewCheckbox").checked) {
+            // Помещаем скорректированные данные обратно на canvas
+            ctx.putImageData(originalImageData , 0, 0);
+    }
+});
+
+
+document.addEventListener('DOMContentLoaded', () => {
+    // Set random values for the fields from 0 to 1
+    let data =  [0, 0, 0, 0, 1, 0, 0, 0, 0]
+    for (let i = 1; i <= 9; i++) {
+        const field = document.getElementById(`field${i}`);
+        field.value = data[i-1]
+    }
+
+    document.getElementById('apply-button').addEventListener('click', function () {
+        const canvas = document.getElementById('image-canvas');
+        const context = canvas.getContext('2d');
+
+        // Example image, you can load your own image
+        const mask = [
+            [parseFloat(document.getElementById('field1').value) || 0,
+            parseFloat(document.getElementById('field2').value) || 0,
+            parseFloat(document.getElementById('field3').value) || 0,],
+            [parseFloat(document.getElementById('field4').value) || 0,
+            parseFloat(document.getElementById('field5').value) || 0,
+            parseFloat(document.getElementById('field6').value) || 0,],
+            [parseFloat(document.getElementById('field7').value) || 0,
+            parseFloat(document.getElementById('field8').value) || 0,
+            parseFloat(document.getElementById('field9').value) || 0]
+        ];
+
+
+        applyGaussianBlur(ctx.getImageData(0, 0, canvas.width, canvas.height), canvas.width,canvas.height,mask);
+    });
+});
+
+
+
+function makeImageMatrix(imageData, imageWidth) {
+    let imageMatrix = [];
+
+	for (let y = 1; y <= imageData.length / (imageWidth * 4); y++) {
+		imageMatrix[y] = [];
+		let x = 1;
+		for (let i = imageWidth * 4 * (y - 1); i < imageWidth * 4 * y; i++) {
+			imageMatrix[y][x] = imageData[i];
+			x += 1;
+		}
+	}
+
+    return imageMatrix;
+}
+
+
+function applyGaussianBlur(imageData, width,height, kernel) {
+    let buffer = new Uint8ClampedArray(width * height * 4);
+    let imageMatrix = makeImageMatrix(imageData.data, width);
+    imageMatrix = edgeHandling(imageMatrix, width, height);
+
+    let pos = 0;
+
+    for (let y = 2; y <= height + 1; y++) {
+		for (let x = 8; x <= width * 4 + 4; x+=4) {
+            let R = 0;
+            let G = 0;
+            let B = 0;
+            for (let s = -1; s <= 1; s++) {
+                for (let t = -1; t <= 1; t++) {
+                    R += kernel[s + 1][t + 1] * imageMatrix[y + t][x - 3 + s * 4];
+                    G += kernel[s + 1][t + 1] * imageMatrix[y + t][x - 2 + s * 4];
+                    B += kernel[s + 1][t + 1] * imageMatrix[y + t][x - 1 + s * 4];
+                }
+            }
+
+            buffer[pos] = R;
+            buffer[pos + 1] = G;
+            buffer[pos + 2] = B;
+            buffer[pos + 3] = 255;
+
+            pos += 4;
+        }
+    }
+
+
+    // ctx.putImageData(new ImageData(buffer, width, height), 0, 0);
+    imageData.data.set(buffer);
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.putImageData(imageData, 0, 0);
+
+}
+
+
+// Helper functions remain the same...
+
+
+
+
+document.addEventListener('DOMContentLoaded', () => {
+    const presets = [
+         [0, 0, 0, 0, 1, 0, 0, 0, 0],
+         [0, -1, 0, -1, 5, -1, 0, 1, 0],
+         [0.059, 0.97, 0.059, 0.97, 0.159, 0.97, 0.059, 0.970, 0.059],
+         [1, 1, 1, 1, 1, 1, 1, 1, 1],
+    ];
+
+    const presetValuesSelect = document.getElementById('presetValuesOptions');
+    const fieldInputs = document.querySelectorAll('#grid-container-numbers input');
+
+    presetValuesSelect.addEventListener('change', () => {
+        const selectedPreset = presetValuesSelect.value;
+        const presetValues = presets[Number(selectedPreset[selectedPreset.length-1])-1];
+
+        fieldInputs.forEach((input, index) => {
+            input.value = presetValues[index];
+        });
+    });
+});
+
+
+function edgeHandling(imageMatrix, width, height) {
+    width = width * 4;
+    let newImageMatrix = [];
+
+    for (let y = 1; y <= height + 2; y++) {
+        newImageMatrix[y] = [];
+    }
+
+    function setRGBA(x1, y1, x2, y2) {
+        newImageMatrix[y1][x1 - 3] = newImageMatrix[y2][x2 - 3];
+        newImageMatrix[y1][x1 - 2] = newImageMatrix[y2][x2 - 2];
+        newImageMatrix[y1][x1 - 1] = newImageMatrix[y2][x2 - 1];
+        newImageMatrix[y1][x1] = newImageMatrix[y2][x2];
+    }
+
+    for (let y = 1; y <= height; y++) {
+		for (let x = 4; x <= width; x+=4) {
+            newImageMatrix[y + 1][x - 3 + 4] = imageMatrix[y][x - 3];
+            newImageMatrix[y + 1][x - 2 + 4] = imageMatrix[y][x - 2];
+            newImageMatrix[y + 1][x - 1 + 4] = imageMatrix[y][x - 1];
+            newImageMatrix[y + 1][x + 4] = imageMatrix[y][x];            
+        }
+    }
+
+
+
+    for (let x = 8; x <= width + 4; x+=4) {
+        setRGBA(x, 1, x, 2);
+    }
+
+    for (let x = 8; x <= width + 4; x+=4) {
+        setRGBA(x, height + 2, x, height + 1);
+    }
+
+    for (let y = 2; y <= height + 1; y++) {
+        setRGBA(4, y, 8, y);
+    }
+
+    for (let y = 2; y <= height + 1; y++) {
+        setRGBA(width + 8, y, width + 4, y);
+    }
+
+    setRGBA(4, 1, 8, 2);
+    setRGBA(width + 8, 1, width + 4, 2);
+    setRGBA(4, height + 2, 8, height + 2);
+    setRGBA(width + 8, height + 2, width + 4, height + 1);
+    
+    return newImageMatrix;
+}
+

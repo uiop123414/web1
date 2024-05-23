@@ -21,6 +21,7 @@ body {
 
 #container,
 #image-container {
+    margin-top: 100px;
     margin-right: 20px;
     margin-bottom: 10px;
     position: fixed; 
@@ -70,5 +71,22 @@ body {
         background-color: white;
         border: 1px solid black;
         padding: 10px;
-        display: none;
+        display: flex;
+
+}
+
+
+#grid-container-numbers {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+}
+
+#image-container {
+    margin-top: 20px;
+    text-align: center;
+}
+
+#image-canvas {
+    border: 1px solid black;
 }
