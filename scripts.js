@@ -235,15 +235,16 @@ sizeRange.addEventListener('input', () => {
     resizeImage(size, size);
 });
 
-
+let color_main,color_alt;
 $(document).ready(function() {
     // Переменная для отслеживания текущего режима (hand или pipette)
 
-
+    
     // Функция для отображения информации о цвете и координатах
     function showColorInfo(color, x, y,isalt=false) {
+    
         if(isalt){
-
+            color_main = ctx.getImageData(x, y, 1, 1).data;
             const pixel = ctx.getImageData(x, y, 1, 1).data;
             $('#color-info-alt').removeClass('d-none').addClass('show');
             $('#color-sample-alt').css('background-color', color);
@@ -256,6 +257,7 @@ $(document).ready(function() {
             document.getElementById('colorDisplay-alt').style.backgroundColor = 'rgb(' + pixel[0] + ',' + pixel[1] + ',' + pixel[2] + ')';
         }
         else{
+            color_alt = ctx.getImageData(x, y, 1, 1).data;
             const pixel = ctx.getImageData(x, y, 1, 1).data;
             $('#color-info').removeClass('d-none').addClass('show');
             $('#color-sample').css('background-color', color);
@@ -267,6 +269,8 @@ $(document).ready(function() {
             $('#luminance').text(calculateRelativeLuminance(pixel[0],pixel[1],pixel[2]).toFixed(2));
             document.getElementById('colorDisplay').style.backgroundColor = 'rgb(' + pixel[0] + ',' + pixel[1] + ',' + pixel[2] + ')'
         }
+        if (color_main!==undefined && color_alt!==undefined)
+            $('#contrast').text(calcContrast(color_main,color_alt).toFixed(1));
         // Здесь можно добавить логику для расчета и отображения других цветовых пространств
     }
 
@@ -659,6 +663,30 @@ document.getElementById("resetValues").addEventListener("click", function() {
 });
 
 
+document.getElementById("resetValuesFilter").addEventListener("click", function() {
+
+    const presets = [
+        [0, 0, 0, 0, 1, 0, 0, 0, 0],
+    ];
+ 
+    const fieldInputs = document.querySelectorAll('#grid-container-numbers input');
+
+    const presetValues = presets[0];
+
+    fieldInputs.forEach((input, index) => {
+           input.value = presetValues[index];
+    });
+
+    document.getElementById('presetValuesOptions').selectedIndex = 0;
+
+    if (document.getElementById("previewCheckFilter").checked) {
+            console.log('hello')
+            // Помещаем скорректированные данные обратно на canvas
+            ctx.putImageData(originalImageData , 0, 0);
+    }
+});
+
+
 document.addEventListener('DOMContentLoaded', () => {
     // Set random values for the fields from 0 to 1
     let data =  [0, 0, 0, 0, 1, 0, 0, 0, 0]
@@ -675,17 +703,36 @@ document.addEventListener('DOMContentLoaded', () => {
         const mask = [
             [parseFloat(document.getElementById('field1').value) || 0,
             parseFloat(document.getElementById('field2').value) || 0,
-            parseFloat(document.getElementById('field3').value) || 0,],
+            parseFloat(document.getElementById('field3').value) || 0],
             [parseFloat(document.getElementById('field4').value) || 0,
             parseFloat(document.getElementById('field5').value) || 0,
-            parseFloat(document.getElementById('field6').value) || 0,],
+            parseFloat(document.getElementById('field6').value) || 0],
             [parseFloat(document.getElementById('field7').value) || 0,
             parseFloat(document.getElementById('field8').value) || 0,
-            parseFloat(document.getElementById('field9').value) || 0]
+            parseFloat(document.getElementById('field9').value) || 0],
         ];
+        console.log(mask)
+        const presetValuesSelect = document.getElementById('presetValuesOptions');
+        const selectedPreset = presetValuesSelect.value;
 
-
-        applyGaussianBlur(ctx.getImageData(0, 0, canvas.width, canvas.height), canvas.width,canvas.height,mask);
+        const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+        switch(Number(selectedPreset[selectedPreset.length-1])){
+            case 1:
+                applyNothing(ctx.getImageData(0, 0, canvas.width, canvas.height), canvas.width,canvas.height,mask);
+                break;
+            case  2:
+                const sharpenedImageData = applySharpeningFilter(context, imageData,mask);
+                context.putImageData(sharpenedImageData, 0, 0);
+                break;
+            case 3:
+                const GaussImageData = applyGaussianBlurFilter(context, imageData,mask);
+                context.putImageData(GaussImageData, 0, 0);
+                break;
+            case 4:
+                const BoxImageData = applyBoxBlurFilter(context, imageData,mask);
+                context.putImageData(BoxImageData, 0, 0);
+                break;
+        }
     });
 });
 
@@ -707,7 +754,7 @@ function makeImageMatrix(imageData, imageWidth) {
 }
 
 
-function applyGaussianBlur(imageData, width,height, kernel) {
+function applyNothing(imageData, width,height, kernel) {
     let buffer = new Uint8ClampedArray(width * height * 4);
     let imageMatrix = makeImageMatrix(imageData.data, width);
     imageMatrix = edgeHandling(imageMatrix, width, height);
@@ -748,14 +795,149 @@ function applyGaussianBlur(imageData, width,height, kernel) {
 
 // Helper functions remain the same...
 
+function applySharpeningFilter(context, imageData,matrix) {
+            const width = imageData.width;
+            const height = imageData.height;
+            const src = imageData.data;
+            const output = context.createImageData(width, height);
+            const dst = output.data;
+
+            // Sharpening matrix
+            //  matrix = [
+            //     [0, -1, 0],
+            //     [-1, 5, -1],
+            //     [0, -1, 0]
+            // ];
+            const matrixSize = 3;
+            const halfMatrixSize = Math.floor(matrixSize / 2);
+
+            for (let y = 0; y < height; y++) {
+                for (let x = 0; x < width; x++) {
+                    let r = 0, g = 0, b = 0;
+
+                    // Apply the matrix
+                    for (let ky = -halfMatrixSize; ky <= halfMatrixSize; ky++) {
+                        for (let kx = -halfMatrixSize; kx <= halfMatrixSize; kx++) {
+                            const weight = matrix[ky + halfMatrixSize][kx + halfMatrixSize];
+                            const px = Math.min(width - 1, Math.max(0, x + kx));
+                            const py = Math.min(height - 1, Math.max(0, y + ky));
+                            const pixelIndex = (py * width + px) * 4;
+                            r += src[pixelIndex] * weight;
+                            g += src[pixelIndex + 1] * weight;
+                            b += src[pixelIndex + 2] * weight;
+                        }
+                    }
+
+                    const dstIndex = (y * width + x) * 4;
+                    dst[dstIndex] = Math.min(Math.max(r, 0), 255);
+                    dst[dstIndex + 1] = Math.min(Math.max(g, 0), 255);
+                    dst[dstIndex + 2] = Math.min(Math.max(b, 0), 255);
+                    dst[dstIndex + 3] = src[dstIndex + 3]; // alpha
+                }
+            }
+
+            return output;
+    }
+
+    function applyGaussianBlurFilter(context, imageData,matrix) {
+        const width = imageData.width;
+        const height = imageData.height;
+        const src = imageData.data;
+        const output = context.createImageData(width, height);
+        const dst = output.data;
+        console.log(matrix)
+        // Gaussian blur matrix
+        // const matrix = [
+        //     [1, 2, 1],
+        //     [2, 4, 2],
+        //     [1, 2, 1]
+        // ];
+        const matrixSize = 3;
+        const matrixSum = 16; // Sum of all values in the matrix
+        const halfMatrixSize = Math.floor(matrixSize / 2);
+
+        for (let y = 0; y < height; y++) {
+            for (let x = 0; x < width; x++) {
+                let r = 0, g = 0, b = 0;
+
+                // Apply the matrix
+                for (let ky = -halfMatrixSize; ky <= halfMatrixSize; ky++) {
+                    for (let kx = -halfMatrixSize; kx <= halfMatrixSize; kx++) {
+                        const weight = matrix[ky + halfMatrixSize][kx + halfMatrixSize];
+                        const px = Math.min(width - 1, Math.max(0, x + kx));
+                        const py = Math.min(height - 1, Math.max(0, y + ky));
+                        const pixelIndex = (py * width + px) * 4;
+                        r += src[pixelIndex] * weight;
+                        g += src[pixelIndex + 1] * weight;
+                        b += src[pixelIndex + 2] * weight;
+                    }
+                }
+
+                const dstIndex = (y * width + x) * 4;
+                dst[dstIndex] = Math.min(Math.max(r / matrixSum, 0), 255);
+                dst[dstIndex + 1] = Math.min(Math.max(g / matrixSum, 0), 255);
+                dst[dstIndex + 2] = Math.min(Math.max(b / matrixSum, 0), 255);
+                dst[dstIndex + 3] = src[dstIndex + 3]; // alpha
+            }
+        }
+
+        return output;
+    }
+
+    function applyBoxBlurFilter(context, imageData,matrix) {
+        const width = imageData.width;
+        const height = imageData.height;
+        const src = imageData.data;
+        const output = context.createImageData(width, height);
+        const dst = output.data;
+
+        // Box blur matrix (3x3)
+        // const matrix = [
+        //     [1, 1, 1],
+        //     [1, 1, 1],
+        //     [1, 1, 1]
+        // ];
+        const matrixSize = 3;
+        const matrixSum = 9; // Sum of all values in the matrix
+        const halfMatrixSize = Math.floor(matrixSize / 2);
+
+        for (let y = 0; y < height; y++) {
+            for (let x = 0; x < width; x++) {
+                let r = 0, g = 0, b = 0;
+
+                // Apply the matrix
+                for (let ky = -halfMatrixSize; ky <= halfMatrixSize; ky++) {
+                    for (let kx = -halfMatrixSize; kx <= halfMatrixSize; kx++) {
+                        const weight = matrix[ky + halfMatrixSize][kx + halfMatrixSize];
+                        const px = Math.min(width - 1, Math.max(0, x + kx));
+                        const py = Math.min(height - 1, Math.max(0, y + ky));
+                        const pixelIndex = (py * width + px) * 4;
+                        r += src[pixelIndex] * weight;
+                        g += src[pixelIndex + 1] * weight;
+                        b += src[pixelIndex + 2] * weight;
+                    }
+                }
+
+                const dstIndex = (y * width + x) * 4;
+                dst[dstIndex] = Math.min(Math.max(r / matrixSum, 0), 255);
+                dst[dstIndex + 1] = Math.min(Math.max(g / matrixSum, 0), 255);
+                dst[dstIndex + 2] = Math.min(Math.max(b / matrixSum, 0), 255);
+                dst[dstIndex + 3] = src[dstIndex + 3]; // alpha
+            }
+        }
+
+        return output;
+    }
+
+
 
 
 
 document.addEventListener('DOMContentLoaded', () => {
     const presets = [
          [0, 0, 0, 0, 1, 0, 0, 0, 0],
-         [0, -1, 0, -1, 5, -1, 0, 1, 0],
-         [0.059, 0.97, 0.059, 0.97, 0.159, 0.97, 0.059, 0.970, 0.059],
+         [0, -1, 0, -1, 5, -1, 0, -1, 0],
+         [1, 2, 1, 2, 4, 2, 1, 2, 1],
          [1, 1, 1, 1, 1, 1, 1, 1, 1],
     ];
 
@@ -823,3 +1005,29 @@ function edgeHandling(imageMatrix, width, height) {
     return newImageMatrix;
 }
 
+
+function calcContrast(rgb1, rgb2) {
+    const RED = 0.2126;
+    const GREEN = 0.7152;
+    const BLUE = 0.0722;
+    
+    const GAMMA = 2.4;
+    
+    function luminance(r, g, b) {
+
+      let a = [r, g, b].map((v) => {
+        v /= 255;
+        return v <= 0.03928
+          ? v / 12.92
+          : Math.pow((v + 0.055) / 1.055, GAMMA);
+      });
+      return a[0] * RED + a[1] * GREEN + a[2] * BLUE;
+    }
+    
+    let lum1 = luminance(rgb1[0],rgb1[1],rgb1[2]);
+    let lum2 = luminance(rgb2[0],rgb2[1],rgb2[2]);
+    let brightest = Math.max(lum1, lum2);
+    let darkest = Math.min(lum1, lum2);
+
+    return (brightest + 0.05) / (darkest + 0.05);
+}

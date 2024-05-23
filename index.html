@@ -220,6 +220,10 @@
 
             </div>
         </div>
+        <div class="contrast">
+            <p>Contrast: <span id="contrast"></span>:1</p>
+            <p><span id="NotEnough"></span></p>
+        </div>
     </div>
 
 
@@ -273,7 +277,10 @@
                                 <option>Прямоугольное размытие 4</option>
                             </select>
                         </div>
-                        <div id="grid-container-numbers">
+                        <div id="grid-container-numbers" style="
+                            display: grid;
+                            grid-template-columns: repeat(3, 1fr);
+                            gap: 10px;">
                             <input type="number" class="form-control" id="field1" placeholder="Поле 1">
                             <input type="number" class="form-control" id="field2" placeholder="Поле 2">
                             <input type="number" class="form-control" id="field3" placeholder="Поле 3">
@@ -285,13 +292,13 @@
                             <input type="number" class="form-control" id="field9" placeholder="Поле 9">
                         </div>
                         <div class="form-check mt-3">
-                            <input type="checkbox" class="form-check-input" id="previewCheck">
-                            <label class="form-check-label" for="previewCheck">Включить предпросмотр</label>
+                            <input type="checkbox" class="form-check-input" id="previewCheckFilter">
+                            <label class="form-check-label" for="previewCheckFilter">Включить предпросмотр</label>
                         </div>
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-dismiss="modal">Закрыть</button>
-                        <button type="button" class="btn btn-danger">Сбросить</button>
+                        <button type="button" class="btn btn-danger" id="resetValuesFilter">Сбросить</button>
                         <button type="button" class="btn btn-primary" id="apply-button">Применить размытие</button>
                     </div>
                 </div>
