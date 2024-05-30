@@ -90,3 +90,13 @@ body {
 #image-canvas {
     border: 1px solid black;
 }
+
+
+#FilterModal {
+    z-index: 1050;
+    pointer-events: none; /* Отключение взаимодействия для фона */
+}
+
+#FilterModal .modal-content {
+    pointer-events: auto; /* Включение взаимодействия для контента модального окна */
+}

@@ -14,6 +14,7 @@ function drawCurve(ctx) {
 
     ctx.clearRect(0, 0, graphCanvas.width, graphCanvas.height);
     drawHistogram();
+
     // Начинаем путь
     ctx.beginPath();
     ctx.moveTo(0, graphCanvas.height);
@@ -98,13 +99,38 @@ function handleImage(event) {
         const marginLeft = parseInt(style.marginLeft) || 0;
         const marginTop = parseInt(style.marginTop) || 0;
     
-        const newMarginLeft = marginLeft + deltaX;
-        const newMarginTop = marginTop + deltaY;
+        const canvasWidth = canvas.offsetWidth;
+        const canvasHeight = canvas.offsetHeight;
+    
+        const viewportWidth = window.innerWidth;
+        const viewportHeight = window.innerHeight;
+    
+        const minVisibleWidth = canvasWidth * 0.1;
+        const minVisibleHeight = canvasHeight * 0.1;
+    
+        let newMarginLeft = marginLeft + deltaX;
+        let newMarginTop = marginTop + deltaY;
+    
+        // Ограничение по горизонтали
+        if (newMarginLeft > viewportWidth - minVisibleWidth) {
+            newMarginLeft = viewportWidth - minVisibleWidth;
+        }
+        if (newMarginLeft < -(canvasWidth - minVisibleWidth)) {
+            newMarginLeft = -(canvasWidth - minVisibleWidth);
+        }
+    
+        // Ограничение по вертикали
+        if (newMarginTop > viewportHeight - minVisibleHeight) {
+            newMarginTop = viewportHeight - minVisibleHeight;
+        }
+        if (newMarginTop < -(canvasHeight - minVisibleHeight)) {
+            newMarginTop = -(canvasHeight - minVisibleHeight);
+        }
     
         canvas.style.marginLeft = `${newMarginLeft}px`;
         canvas.style.marginTop = `${newMarginTop}px`;
     }
-
+    
 
     // Function to handle key down event
     function handleKeyDown(event) {
@@ -142,7 +168,7 @@ $(document).ready(function() {
       var height = parseInt($("#resize-height").val());
 
       type = $("#resize-method").val();
-  
+
       // Проверка валидности введенных данных
       if (isNaN(width) || isNaN(height) || width <= 0 || height <= 0) {
         $("#error-message").text("Введите корректные значения ширины и высоты.").show();
@@ -152,20 +178,20 @@ $(document).ready(function() {
         width = canvas.width * (width/100)
         height = canvas.height * (height/100)
       }
-      
-      canvas.width = 2500;
-      canvas.height = 2500;
+
+      canvas.width = width;
+      canvas.height = height;
       const scaledImageData = nearestNeighborResize(originalImageData, canvas.width, canvas.height);
-        
+
       const widthValue = document.getElementById('width-value');
       const heightValue = document.getElementById('height-value');
-  
+
       widthValue.textContent =  parseInt(canvas.width);
       heightValue.textContent = parseInt(canvas.height);
-        
+
       ctx.putImageData(scaledImageData, 0, 0);
 
-  
+
       // Закрытие модального окна
       $("#Redact").modal("hide");
   
@@ -269,8 +295,18 @@ $(document).ready(function() {
             $('#luminance').text(calculateRelativeLuminance(pixel[0],pixel[1],pixel[2]).toFixed(2));
             document.getElementById('colorDisplay').style.backgroundColor = 'rgb(' + pixel[0] + ',' + pixel[1] + ',' + pixel[2] + ')'
         }
-        if (color_main!==undefined && color_alt!==undefined)
-            $('#contrast').text(calcContrast(color_main,color_alt).toFixed(1));
+
+        if (color_main!==undefined && color_alt!==undefined){
+            constrast = calcContrast(color_main,color_alt).toFixed(1)
+
+                $('#contrast').text(constrast);
+            if(constrast<4.5){
+                $('#NotEnough').text("контраст недостаточный");
+            }
+            else{
+                $('#NotEnough').text("");
+            }
+        }
         // Здесь можно добавить логику для расчета и отображения других цветовых пространств
     }
 
@@ -398,8 +434,8 @@ downloadButton.addEventListener('click', () => {
     downloadCanvasImage(canvas, 'my_image.png');
 });
 
-graphButton.addEventListener('click', () => {
-    
+$('#FilterModal').on('shown.bs.modal', function () {
+    $('body').removeClass('modal-open');
 });
 
 
@@ -426,7 +462,7 @@ closeButtonPippete.addEventListener('click', () => {
     $("#infoPanel").addClass("invisible")
 });
 
-function rgbToXyz(r, g, b,data=false) {
+function rgbToXyz(r, g, b, data = false) {
     // Normalize the RGB values to the range 0-1
     r = r / 255;
     g = g / 255;
@@ -438,20 +474,21 @@ function rgbToXyz(r, g, b,data=false) {
     b = b > 0.04045 ? Math.pow((b + 0.055) / 1.055, 2.4) : b / 12.92;
 
     // Convert the linear RGB values to the XYZ color space
-    const x = (r * 0.4124564 + g * 0.3575761 + b * 0.1804375).toFixed(2);
-    const y = (r * 0.2126729 + g * 0.7151522 + b * 0.0721750).toFixed(2);
-    const z = (r * 0.0193339 + g * 0.1191920 + b * 0.9503041).toFixed(2);
-    if(data){
-        return {x,y,z}
+    const x = r * 0.4124564 + g * 0.3575761 + b * 0.1804375;
+    const y = r * 0.2126729 + g * 0.7151522 + b * 0.0721750;
+    const z = r * 0.0193339 + g * 0.1191920 + b * 0.9503041;
+
+    if (data) {
+        return { x, y, z };
     }
-    const XYZ = `${x}, ${y}, ${z}`;
+    const XYZ = `${x.toFixed(2)}, ${y.toFixed(2)}, ${z.toFixed(2)}`;
     return '(' + XYZ + ')';
 }
 
 // Function to convert XYZ to LAB
 function xyzToLab(x, y, z) {
-    // D65 standard referent values
-    const refX =  95.047;
+    // D65 standard reference values
+    const refX = 95.047;
     const refY = 100.000;
     const refZ = 108.883;
 
@@ -459,23 +496,67 @@ function xyzToLab(x, y, z) {
     y = y / refY;
     z = z / refZ;
 
-    x = x > 0.008856 ? Math.pow(x, 1/3) : (7.787 * x) + (16 / 116);
-    y = y > 0.008856 ? Math.pow(y, 1/3) : (7.787 * y) + (16 / 116);
-    z = z > 0.008856 ? Math.pow(z, 1/3) : (7.787 * z) + (16 / 116);
+    x = x > 0.008856 ? Math.cbrt(x) : (7.787 * x) + (16 / 116);
+    y = y > 0.008856 ? Math.cbrt(y) : (7.787 * y) + (16 / 116);
+    z = z > 0.008856 ? Math.cbrt(z) : (7.787 * z) + (16 / 116);
 
-    const l = ((116 * y) - 16).toFixed(2);
-    const a = (500 * (x - y)).toFixed(2);
-    const b = (200 * (y - z)).toFixed(2);
+    const l = (116 * y) - 16;
+    const a = 500 * (x - y);
+    const b = 200 * (y - z);
 
-    return { l, a, b };
+    return {
+        l: l.toFixed(2),
+        a: a.toFixed(2),
+        b: b.toFixed(2)
+    };
 }
 
 function rgbToLab(r, g, b) {
-    const xyz = rgbToXyz(r, g, b,true);
-    const LAB = xyzToLab(xyz.x, xyz.y, xyz.z);
-    const LAB_text = `${LAB.l}, ${LAB.a}, ${LAB.b}`;
-    return '('+LAB_text+')';
+    // Функция для преобразования RGB в XYZ
+    function rgbToXyz(r, g, b) {
+        const [var_R, var_G, var_B] = [r, g, b]
+            .map(x => x / 255)
+            .map(x => x > 0.04045
+                ? Math.pow(((x + 0.055) / 1.055), 2.4)
+                : x / 12.92)
+            .map(x => x * 100)
+    
+        // Observer. = 2°, Illuminant = D65
+        const x = var_R * 0.4124 + var_G * 0.3576 + var_B * 0.1805
+        const y = var_R * 0.2126 + var_G * 0.7152 + var_B * 0.0722
+        const z = var_R * 0.0193 + var_G * 0.1192 + var_B * 0.9505
+        return {x:x.toFixed(2), y:y.toFixed(2), z:z.toFixed(2)}
+    }
+
+    function xyzToLab(x, y, z) {
+        const refX = 95.047;
+        const refY = 100.000;
+        const refZ = 108.883;
+
+        const [ var_X, var_Y, var_Z ] = [ x / refX, y / refY, z / refZ ]
+            .map(a => a > 0.008856
+                ? Math.pow(a, 1 / 3)
+                : (7.787 * a) + (16 / 116))
+    
+        const l = (116 * var_Y) - 16
+        const a = 500 * (var_X - var_Y)
+        const b = 200 * (var_Y - var_Z)
+    
+        return {l:l.toFixed(2), a:a.toFixed(2), b:b.toFixed(2)}
+    }
+
+    // Преобразование RGB в XYZ
+    const { x, y, z } = rgbToXyz(r, g, b);
+
+    // Преобразование XYZ в LAB
+    const lab = xyzToLab(x, y, z);
+
+    // Возвращаем значения LAB в виде строки
+    const labText = `${lab.l}, ${lab.a}, ${lab.b}`;
+    return '(' + labText + ')';
 }
+
+
 
 
 // Function to calculate relative luminance
@@ -498,6 +579,8 @@ function calculateContrastRatio(rgb1, rgb2) {
 
 
 function drawHistogram() {
+    drawAxes();
+
     var imageCanvas = document.getElementById("image-canvas");
     let imageCtx = imageCanvas.getContext("2d");
     var graphCtx = graphCanvas.getContext("2d");
@@ -577,6 +660,17 @@ function makegraph(applyCorr=false){
     var input_y = parseInt(document.getElementById("input_y").value);
     var output_x = parseInt(document.getElementById("output_x").value);
     var output_y = parseInt(document.getElementById("output_y").value);
+
+    // Проверяем ограничения
+    if (output_x <= input_x || output_y <= input_y) {
+        alert("Ошибка: значения x и y выходной точки должны быть больше x и y входной точки соответственно.");
+        // Остановка выполнения функции
+        return;
+    }
+
+    // Ограничение значения output_x и output_y до максимального значения 255
+    output_x = Math.min(output_x, 255);
+    output_y = Math.min(output_y, 255);
 
     // Инициализируем график
     drawGraph(graphCtx);
@@ -680,7 +774,6 @@ document.getElementById("resetValuesFilter").addEventListener("click", function(
     document.getElementById('presetValuesOptions').selectedIndex = 0;
 
     if (document.getElementById("previewCheckFilter").checked) {
-            console.log('hello')
             // Помещаем скорректированные данные обратно на canvas
             ctx.putImageData(originalImageData , 0, 0);
     }
@@ -711,7 +804,6 @@ document.addEventListener('DOMContentLoaded', () => {
             parseFloat(document.getElementById('field8').value) || 0,
             parseFloat(document.getElementById('field9').value) || 0],
         ];
-        console.log(mask)
         const presetValuesSelect = document.getElementById('presetValuesOptions');
         const selectedPreset = presetValuesSelect.value;
 
@@ -845,7 +937,6 @@ function applySharpeningFilter(context, imageData,matrix) {
         const src = imageData.data;
         const output = context.createImageData(width, height);
         const dst = output.data;
-        console.log(matrix)
         // Gaussian blur matrix
         // const matrix = [
         //     [1, 2, 1],
@@ -1023,11 +1114,47 @@ function calcContrast(rgb1, rgb2) {
       });
       return a[0] * RED + a[1] * GREEN + a[2] * BLUE;
     }
-    
-    let lum1 = luminance(rgb1[0],rgb1[1],rgb1[2]);
-    let lum2 = luminance(rgb2[0],rgb2[1],rgb2[2]);
+    let lum1 = luminance(...rgb1);
+    let lum2 = luminance(...rgb2);
     let brightest = Math.max(lum1, lum2);
     let darkest = Math.min(lum1, lum2);
 
     return (brightest + 0.05) / (darkest + 0.05);
+}
+
+
+function drawAxes() {
+    const canvas = document.getElementById('graphCanvas');
+    const ctx = canvas.getContext('2d');
+
+    // Clear canvas
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Draw X and Y axes
+    ctx.beginPath();
+    ctx.moveTo(0, canvas.height);
+    ctx.lineTo(canvas.width, canvas.height);
+    ctx.lineTo(canvas.width, 0);
+    ctx.strokeStyle = '#000';
+    ctx.stroke();
+
+    // Draw ticks and labels
+    ctx.font = '10px Arial';
+    ctx.fillStyle = '#000';
+
+    // X axis ticks and labels
+    for (let x = 0; x <= 255; x += 50) {
+        ctx.moveTo(x, canvas.height);
+        ctx.lineTo(x, canvas.height - 5);
+        ctx.stroke();
+        ctx.fillText(x, x - 5, canvas.height - 10);
+    }
+
+    // Y axis ticks and labels
+    for (let y = 0; y <= 255; y += 50) {
+        ctx.moveTo(0, canvas.height - y);
+        ctx.lineTo(5, canvas.height - y);
+        ctx.stroke();
+        ctx.fillText(y, 10, canvas.height - y + 3);
+    }
 }
